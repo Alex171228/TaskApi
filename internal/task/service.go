@@ -20,7 +20,7 @@ func NewService(r Repository) *Service {
 func (s *Service) Create(ctx context.Context, input Input) (Task, error) {
 	title := strings.TrimSpace(input.Title)
 	if len(title) < 3 || len(input.Description) < 3 {
-		return Task{}, errors.New("Not valid title or description")
+		return Task{}, ErrInvalidInput
 	}
 	now := time.Now()
 	t := Task{
@@ -38,16 +38,22 @@ func (s *Service) List(ctx context.Context) ([]Task, error) {
 }
 
 func (s *Service) Get(ctx context.Context, id int) (Task, error) {
+	if id < 0 {
+		return Task{}, errors.New("Not valid id")
+	}
 	return s.repo.GetbyID(ctx, id)
 }
 
 func (s *Service) Delete(ctx context.Context, id int) error {
+	if id < 0 {
+		return errors.New("Not valid id")
+	}
 	return s.repo.Delete(ctx, id)
 }
 func (s *Service) Update(ctx context.Context, id int, input Input) (Task, error) {
 	title := strings.TrimSpace(input.Title)
 	if len(title) < 3 || len(input.Description) < 3 {
-		return Task{}, errors.New("Not valid title or description")
+		return Task{}, ErrInvalidInput
 	}
 	task, err := s.repo.GetbyID(ctx, id)
 	if err != nil {

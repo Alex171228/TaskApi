@@ -20,3 +20,4 @@ type Input struct {
 }
 
 var ErrNotFound = errors.New("Task not found")
+var ErrInvalidInput = errors.New("Invalid title or description")
