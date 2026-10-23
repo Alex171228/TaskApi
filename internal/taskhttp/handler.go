@@ -3,6 +3,7 @@ package taskhttp
 import (
 	"TaskAPI2/internal/httpx"
 	"TaskAPI2/internal/task"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -27,7 +28,7 @@ func (h *Handler) searchID(s string) (int, bool) {
 	return id, true
 }
 
-func (h *Handler) TasksHandler(w http.ResponseWriter, r *http.Request) { // методы разбираются
+func (h *Handler) TasksHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		h.GetTasks(w, r)
@@ -69,7 +70,15 @@ func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
 	bodyconv := ConvertRequest(body)
 	t, err := h.service.Update(r.Context(), id, bodyconv)
 	if err != nil {
-		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		switch {
+		case errors.Is(err, task.ErrNotFound):
+			httpx.WriteError(w, http.StatusNotFound, task.ErrNotFound.Error())
+		case errors.Is(err, task.ErrInvalidInput):
+			httpx.WriteError(w, http.StatusBadRequest, task.ErrInvalidInput.Error())
+		default:
+			log.Println(err)
+			httpx.WriteError(w, http.StatusInternalServerError, "Internal server error")
+		}
 		return
 	}
 	taskansw := ConvertAnswer(t)
@@ -99,7 +108,12 @@ func (h *Handler) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	bodyconv := ConvertRequest(body)
 	t, err := h.service.Create(r.Context(), bodyconv)
 	if err != nil {
-		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		if errors.Is(err, task.ErrInvalidInput) {
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		log.Println(err)
+		httpx.WriteError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	taskansw := ConvertAnswer(t)
@@ -108,7 +122,8 @@ func (h *Handler) CreateHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetTasks(w http.ResponseWriter, r *http.Request) {
 	t, err := h.service.List(r.Context())
 	if err != nil {
-		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		log.Println(err)
+		httpx.WriteError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	answtasks := make([]TaskAnswer, len(t))
@@ -125,7 +140,12 @@ func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := h.service.Delete(r.Context(), id)
 	if err != nil {
-		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		if errors.Is(err, task.ErrNotFound) {
+			httpx.WriteError(w, http.StatusNotFound, task.ErrNotFound.Error())
+			return
+		}
+		log.Println(err)
+		httpx.WriteError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

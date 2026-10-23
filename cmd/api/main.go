@@ -1,53 +1,23 @@
 package main
 
-import "database/sql"
+import (
+	"TaskAPI2/internal/memory"
+	"TaskAPI2/internal/task"
+	"TaskAPI2/internal/taskhttp"
+	"log"
+	"net/http"
+)
 
-type repo struct {
-	s      []int
-	nextId int
-}
-
-func (r *repo) get() {
-
-}
-func (r *repo) create() {
-
-}
-func Newrepo() *repo {
-	return &repo{}
-}
-
-type service struct {
-	r db
-}
-type db interface {
-	get()
-	create()
-}
-
-func (s *service) get() {
-	s.r.get()
-}
-func (s *service) create() {
-	s.r.create()
-}
-
-func NewService(r db) *service {
-	return &service{r: r}
-}
-
-type repoDb struct {
-	*sql.DB
-}
-
-func (repo *repoDb) get() {
-
-}
-func (repo *repoDb) create() {
-
-}
 func main() {
-	r1 := Newrepo()
-	r2 := repoDb{}
-	s3 := NewService(r1)
+	repo := memory.NewMemoryRepository()
+	service := task.NewService(repo)
+	handler := taskhttp.NewHandler(service)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/tasks", handler.TasksHandler)
+	mux.HandleFunc("/tasks/{id}", handler.TaskbyIdHandler)
+	if err := http.ListenAndServe(":8081", mux); err != nil {
+		log.Fatal(err)
+	}
+	log.Println("TodoAPI запущен на 8081")
 }
