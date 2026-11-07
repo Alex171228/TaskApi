@@ -24,7 +24,11 @@ func main() {
 		log.Printf("No db connection %v", err)
 		return
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Error closing db %v", err)
+		}
+	}()
 	repo := memory.NewMemoryRepository()
 	service := task.NewService(repo)
 	handler := taskhttp.NewHandler(service)
