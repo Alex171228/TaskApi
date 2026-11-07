@@ -92,7 +92,12 @@ func (h *Handler) GetbyID(w http.ResponseWriter, r *http.Request) {
 	}
 	t, err := h.service.Get(r.Context(), id)
 	if err != nil {
-		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		if errors.Is(err, task.ErrNotFound) {
+			httpx.WriteError(w, http.StatusNotFound, task.ErrNotFound.Error())
+			return
+		}
+		log.Println(err)
+		httpx.WriteError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	taskansw := ConvertAnswer(t)
