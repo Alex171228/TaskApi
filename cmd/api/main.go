@@ -4,9 +4,12 @@ import (
 	"TaskAPI2/internal/config"
 	"TaskAPI2/internal/httpserver"
 	"TaskAPI2/internal/memory"
+	"TaskAPI2/internal/postgres"
 	"TaskAPI2/internal/task"
 	"TaskAPI2/internal/taskhttp"
+	"context"
 	"log"
+	"time"
 )
 
 func main() {
@@ -14,6 +17,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cntxt, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	db, err := postgres.Open(cntxt, cnfg.DatabaseURL)
+	cancel()
+	if err != nil {
+		log.Printf("No db connection %v", err)
+		return
+	}
+	defer db.Close()
 	repo := memory.NewMemoryRepository()
 	service := task.NewService(repo)
 	handler := taskhttp.NewHandler(service)
