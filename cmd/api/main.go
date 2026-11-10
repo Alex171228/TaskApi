@@ -3,7 +3,6 @@ package main
 import (
 	"TaskAPI2/internal/config"
 	"TaskAPI2/internal/httpserver"
-	"TaskAPI2/internal/memory"
 	"TaskAPI2/internal/postgres"
 	"TaskAPI2/internal/task"
 	"TaskAPI2/internal/taskhttp"
@@ -29,8 +28,9 @@ func main() {
 			log.Printf("Error closing db %v", err)
 		}
 	}()
-	repo := memory.NewMemoryRepository()
-	service := task.NewService(repo)
+	//repo := memory.NewMemoryRepository()
+	repodb := postgres.NewTaskRepository(db)
+	service := task.NewService(repodb)
 	handler := taskhttp.NewHandler(service)
 	server := httpserver.New(cnfg.HTTPAddr, handler)
 	log.Printf("TodoAPI запущен на %s", cnfg.HTTPAddr)
