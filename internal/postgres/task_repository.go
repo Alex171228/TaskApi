@@ -4,6 +4,7 @@ import (
 	"TaskAPI2/internal/task"
 	"context"
 	"database/sql"
+	"errors"
 )
 
 type TaskRepository struct {
@@ -30,7 +31,7 @@ func (tr *TaskRepository) Create(ctx context.Context, t task.Task) (task.Task, e
 	VALUES ($1,$2,$3,$4,$5)
 	RETURNING id,title, description, done, created_at, updated_at
 `
-	rowscan := tr.db.QueryRowContext(ctx, query, t.Title, t.Description, t.CreatedAt, t.UpdatedAt)
+	rowscan := tr.db.QueryRowContext(ctx, query, t.Title, t.Description, t.Done, t.CreatedAt, t.UpdatedAt)
 	var res task.Task
 	if err := rowscan.Scan(&res.ID, &res.Title, &res.Description, &res.Done, &res.CreatedAt, &res.UpdatedAt); err != nil {
 		return task.Task{}, err
@@ -38,12 +39,47 @@ func (tr *TaskRepository) Create(ctx context.Context, t task.Task) (task.Task, e
 	return res, nil
 }
 func (tr *TaskRepository) Get(ctx context.Context) ([]task.Task, error) {
-
+	const query = `
+	SELECT  id, title, description, done, created_at, updated_at
+	FROM  tasks
+	ORDER BY id
+`
+	rows, err := tr.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]task.Task, 0)
+	for rows.Next() {
+		var t task.Task
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Done, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 func (tr *TaskRepository) Delete(ctx context.Context, id int) error {
 
 }
 func (tr *TaskRepository) GetbyID(ctx context.Context, id int) (task.Task, error) {
+	const query = `
+	SELECT  id, title, description, done, created_at, updated_at
+	FROM  tasks
+	WHERE id = $1
+`
+	rowscan := tr.db.QueryRowContext(ctx, query, id)
+	var res task.Task
+	if err := rowscan.Scan(&res.ID, &res.Title, &res.Description, &res.Done, &res.CreatedAt, &res.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return task.Task{}, task.ErrNotFound
+		}
+		return task.Task{}, err
+	}
+	return res, nil
 
 }
 func (tr *TaskRepository) Put(ctx context.Context, t task.Task, id int) (task.Task, error) {
