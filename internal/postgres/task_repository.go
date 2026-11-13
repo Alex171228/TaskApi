@@ -42,7 +42,7 @@ func (tr *TaskRepository) Get(ctx context.Context) ([]task.Task, error) {
 	const query = `
 	SELECT  id, title, description, done, created_at, updated_at
 	FROM  tasks
-	ORDER BY id
+	ORDER BY created_at DESC, id DESC
 `
 	rows, err := tr.db.QueryContext(ctx, query)
 	if err != nil {
@@ -63,7 +63,23 @@ func (tr *TaskRepository) Get(ctx context.Context) ([]task.Task, error) {
 	return result, nil
 }
 func (tr *TaskRepository) Delete(ctx context.Context, id int) error {
-
+	const query = `
+	DELETE
+	FROM  tasks
+	WHERE id = $1
+	`
+	result, err := tr.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return task.ErrNotFound
+	}
+	return nil
 }
 func (tr *TaskRepository) GetbyID(ctx context.Context, id int) (task.Task, error) {
 	const query = `
@@ -83,5 +99,19 @@ func (tr *TaskRepository) GetbyID(ctx context.Context, id int) (task.Task, error
 
 }
 func (tr *TaskRepository) Put(ctx context.Context, t task.Task, id int) (task.Task, error) {
-
+	const query = `
+	UPDATE tasks
+	SET (title, description, done, updated_at) = ($1, $2, $3, $4)
+	WHERE id = $5
+	RETURNING id, title, description, done, created_at, updated_at
+`
+	rowscan := tr.db.QueryRowContext(ctx, query, t.Title, t.Description, t.Done, t.UpdatedAt, id)
+	var res task.Task
+	if err := rowscan.Scan(&res.ID, &res.Title, &res.Description, &res.Done, &res.CreatedAt, &res.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return task.Task{}, task.ErrNotFound
+		}
+		return task.Task{}, err
+	}
+	return res, nil
 }

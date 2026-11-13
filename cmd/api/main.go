@@ -20,7 +20,7 @@ func main() {
 	db, err := postgres.Open(cntxt, cnfg.DatabaseURL)
 	cancel()
 	if err != nil {
-		log.Printf("No db connection %v", err)
+		log.Printf("No db connection")
 		return
 	}
 	defer func() {
@@ -28,6 +28,13 @@ func main() {
 			log.Printf("Error closing db %v", err)
 		}
 	}()
+	migrcontext, cancelmigr := context.WithTimeout(context.Background(), 10*time.Second)
+	err = postgres.Migrate(migrcontext, db)
+	cancelmigr()
+	if err != nil {
+		log.Printf("Migrate error %v", err)
+		return
+	}
 	//repo := memory.NewMemoryRepository()
 	repodb := postgres.NewTaskRepository(db)
 	service := task.NewService(repodb)
