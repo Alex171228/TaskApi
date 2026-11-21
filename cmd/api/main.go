@@ -7,7 +7,12 @@ import (
 	"TaskAPI2/internal/task"
 	"TaskAPI2/internal/taskhttp"
 	"context"
+	"errors"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -41,7 +46,26 @@ func main() {
 	handler := taskhttp.NewHandler(service)
 	server := httpserver.New(cnfg.HTTPAddr, handler)
 	log.Printf("TodoAPI запущен на %s", cnfg.HTTPAddr)
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
+	serverErrors := make(chan error, 1)
+	go func() {
+		serverErrors <- server.ListenAndServe()
+	}()
+	stopContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Println("Server closed with error")
+		}
+		return
+	case <-stopContext.Done():
+		log.Println("Shotdown signal recived")
+
+	}
+	contextshot, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(contextshot); err != nil {
+		log.Printf("Server shutdown with %v", err)
 	}
 }

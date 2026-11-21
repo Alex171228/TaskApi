@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"log"
 	"os"
 	"strings"
 
@@ -15,9 +14,8 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return Config{}, errors.New("Can't load .env")
 	}
 	cnfg := Config{
 		HTTPAddr:    os.Getenv("HTTP_ADDR"),
@@ -38,3 +36,5 @@ func Load() (Config, error) {
 
 	return cnfg, nil
 }
+
+// добавить конфигурации шатдауна
