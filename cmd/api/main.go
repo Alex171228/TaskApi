@@ -25,7 +25,7 @@ func main() {
 	db, err := postgres.Open(cntxt, cnfg.DatabaseURL)
 	cancel()
 	if err != nil {
-		log.Printf("No db connection")
+		log.Printf("No db connection: %v", err)
 		return
 	}
 	defer func() {
@@ -56,16 +56,20 @@ func main() {
 	select {
 	case err := <-serverErrors:
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Println("Server closed with error")
+			log.Printf("Server closed with %v", err)
 		}
 		return
 	case <-stopContext.Done():
 		log.Println("Shotdown signal recived")
 
 	}
-	contextshot, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	contextshot, cancel := context.WithTimeout(context.Background(), cnfg.ShutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(contextshot); err != nil {
 		log.Printf("Server shutdown with %v", err)
+
+		if err := server.Close(); err != nil {
+			log.Printf("Server closed with %v", err)
+		}
 	}
 }
